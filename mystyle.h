@@ -41,6 +41,7 @@ public:
     QSize sizeFromContents(QStyle::ContentsType ct, const QStyleOption *opt,
                            const QSize &csz, const QWidget *widget = nullptr) const override;
 
+
 signals:
 
 public slots:

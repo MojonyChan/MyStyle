@@ -1,6 +1,8 @@
 #ifndef WIDGET_H
 #define WIDGET_H
 
+#include "mystyle.h"
+
 #include <QWidget>
 #include <QProgressBar>
 #include <QPushButton>
