@@ -1,9 +1,76 @@
 #include "mystyle.h"
 #include <QDebug>
+namespace  {
+void drawShadow(QPainter *painter, const QStyleOption *option, int borderW)
+{
+    // 绘制边框
+    QLinearGradient leftG(option->rect.x() + borderW, option->rect.y() + borderW, option->rect.x(), option->rect.y()+borderW);
+    QLinearGradient topG(option->rect.x() + borderW, option->rect.y() + borderW, option->rect.x()+borderW, option->rect.y());
+    QLinearGradient rightG(option->rect.width()-borderW, option->rect.y() + borderW, option->rect.width(), option->rect.y() + borderW);
+    QLinearGradient bottomG(option->rect.x() + borderW, option->rect.height()-borderW, option->rect.x()+borderW, option->rect.height());
+    QRadialGradient leftTopG(option->rect.x() + borderW, option->rect.y() + borderW, borderW);
+    QRadialGradient leftBottomG(option->rect.x() + borderW, option->rect.height()-borderW, borderW);
+    QRadialGradient rightTopG(option->rect.width()-borderW, option->rect.y() + borderW, borderW);
+    QRadialGradient rightBottomG(option->rect.width()-borderW, option->rect.height()-borderW, borderW);
+
+    auto colorSetting = [](QGradient &g){
+        g.setColorAt(0, QColor(100, 100, 100, 100));
+        g.setColorAt(1, QColor(255, 255, 255, 0));
+    };
+
+    colorSetting(leftG);
+    colorSetting(rightG);
+    colorSetting(topG);
+    colorSetting(bottomG);
+    colorSetting(leftTopG);
+    colorSetting(leftBottomG);
+    colorSetting(rightTopG);
+    colorSetting(rightBottomG);
+
+    painter->setPen(Qt::NoPen);
+
+    painter->setBrush(QColor(100, 100, 100, 100));
+    painter->drawRect(option->rect - QMargins(borderW, borderW, borderW, borderW));
+
+    painter->setBrush(leftG);
+    painter->drawRect(option->rect.x(), option->rect.y() + borderW, borderW, option->rect.height()-2*borderW);
+    painter->setBrush(rightG);
+    painter->drawRect(option->rect.width()-borderW, option->rect.y() + borderW, borderW, option->rect.height()-2*borderW);
+    painter->setBrush(topG);
+    painter->drawRect(option->rect.x()+borderW, option->rect.y(), option->rect.width()-2*borderW, borderW);
+    painter->setBrush(bottomG);
+    painter->drawRect(option->rect.x()+borderW, option->rect.height()-borderW, option->rect.width()-2*borderW, borderW);
+
+    painter->save();
+
+    // 小矩形区域和面板边框区域总和
+    painter->setClipRegion(QRegion(option->rect.x(), option->rect.y(), borderW, borderW));
+    painter->setBrush(leftTopG);
+    painter->drawEllipse(QPoint(option->rect.x()+borderW, option->rect.y()+borderW), borderW, borderW);
+    painter->restore();
+
+    painter->save();
+    painter->setBrush(leftBottomG);
+    painter->setClipRegion(QRegion(option->rect.x(), option->rect.height()-borderW, borderW, borderW));
+    painter->drawEllipse(QPoint(option->rect.x()+borderW, option->rect.height()-borderW), borderW, borderW);
+    painter->restore();
+
+    painter->save();
+    painter->setBrush(rightTopG);
+    painter->setClipRegion(QRegion(option->rect.width()-borderW, option->rect.y(), borderW, borderW));
+    painter->drawEllipse(QPoint(option->rect.width()-borderW, option->rect.y()+borderW), borderW, borderW);
+    painter->restore();
+
+    painter->save();
+    painter->setBrush(rightBottomG);
+    painter->setClipRegion(QRegion(option->rect.width()-borderW, option->rect.height()-borderW, borderW, borderW));
+    painter->drawEllipse(QPoint(option->rect.width()-borderW, option->rect.height()-borderW), borderW, borderW);
+    painter->restore();
+}
+}
 
 void MyStyle::drawPrimitive(QStyle::PrimitiveElement element, const QStyleOption *option, QPainter *painter, const QWidget *widget) const
 {
-//    qDebug() << element << widget->metaObject()->className() << __func__;
     switch (element) {
     case PE_IndicatorProgressChunk: {
         QLinearGradient linear;
@@ -21,10 +88,31 @@ void MyStyle::drawPrimitive(QStyle::PrimitiveElement element, const QStyleOption
 
         return;
     }
+    case PE_PanelMenu: {
+
+        int borderW = pixelMetric(PM_MenuPanelWidth);
+        ::drawShadow(painter, option, borderW);
+
+        QLinearGradient linearG(QPoint(option->rect.x(), option->rect.y()), QPoint(option->rect.x() + option->rect.width(), option->rect.y() + option->rect.height()));
+        linearG.setColorAt(0, QColor(255,182,193, 180));
+        linearG.setColorAt(0.5, QColor(100,149,237, 180));
+        linearG.setColorAt(1, QColor(255,222,173, 180));
+
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(linearG);
+        painter->drawRoundedRect(option->rect - QMargins(borderW, borderW, borderW, borderW), 5, 5);
+        return;
+    }
+    case PE_FrameMenu: {
+
+        return;
+    }
+
     default:
         break;
     }
 
+//    qDebug() << element << widget->metaObject()->className() << __func__;
     return QCommonStyle::drawPrimitive(element, option, painter, widget);
 }
 
@@ -108,7 +196,105 @@ void MyStyle::drawControl(QStyle::ControlElement element, const QStyleOption *op
 
         return;
     }
+    case CE_MenuItem: {
+        const QStyleOptionMenuItem *menuItem = qstyleoption_cast<const QStyleOptionMenuItem *>(opt);
+        bool hover = menuItem->state & State_Selected && menuItem->state & State_Enabled;
+        QColor textC(QColor(50, 50, 50));
+        QColor backgroundC(Qt::transparent);
+        int iw = pixelMetric(PM_SmallIconSize);
+        if (hover) {
+            textC = Qt::white;
+            backgroundC = QColor(100, 149, 237);
+        }
 
+        if (menuItem->menuItemType == QStyleOptionMenuItem::Separator) {
+            p->setPen(textC);
+            p->setBrush(Qt::NoBrush);
+            p->drawLine(menuItem->rect.x(), menuItem->rect.center().y(), menuItem->rect.x()+menuItem->rect.width(), menuItem->rect.center().y());
+        }
+
+        p->save();
+        p->setPen(Qt::NoPen);
+        p->setBrush(backgroundC);
+        p->drawRoundedRect(menuItem->rect, 5, 5);
+        p->restore();
+
+        p->save();
+        p->setPen(textC);
+        p->setBrush(Qt::NoBrush);
+        p->drawText(menuItem->rect - QMargins(iw+8, 0, 0, 0), Qt::AlignLeft | Qt::AlignVCenter, menuItem->text);
+        p->restore();
+
+        if (!menuItem->icon.isNull()) {
+            QPixmap iconP = menuItem->icon.pixmap(iw, iw);
+            p->save();
+            QPainterPath path;
+
+            path.addEllipse(QRect(menuItem->rect.x()+2, menuItem->rect.y()+(menuItem->rect.height()-iw)/2, iw, iw));
+            p->setClipPath(path);
+            p->drawPixmap(menuItem->rect.x()+2, menuItem->rect.y()+(menuItem->rect.height()-iw)/2, iconP);
+            p->restore();
+        }
+        return;
+    }
+
+    case CE_PushButton: {
+        const QStyleOptionButton *button = qstyleoption_cast<const QStyleOptionButton *>(opt);
+        if (!button || !(button->features & QStyleOptionDelayButton::DelayBytton))
+            return QCommonStyle::drawControl(element, opt, p, widget);
+
+        const QStyleOptionDelayButton *delayButton = qstyleoption_cast<const QStyleOptionDelayButton *>(opt);
+
+        if (delayButton) {
+            proxy()->drawControl(CE_PushButtonBevel, delayButton, p, widget);
+
+            QStyleOptionDelayButton subopt = *delayButton;
+            subopt.rect = subElementRect(SE_PushButtonContents, delayButton, widget);
+            proxy()->drawControl(CE_PushButtonLabel, &subopt, p, widget);
+        }
+
+        return;
+    }
+    case CE_PushButtonBevel: {
+        if (const QStyleOptionDelayButton *button = qstyleoption_cast<const QStyleOptionDelayButton *>(opt)) {
+            QStyleOptionDelayButton b(*button);  // 如果这里自定义的StyleOption未定义拷贝构造，就会出现数据错乱
+            // no PM_ButtonShiftHorizontal and PM_ButtonShiftVertical for fusion style
+            b.state &= ~(State_On | State_Sunken);
+            QCommonStyle::drawControl(element, &b, p, widget);
+        }
+        return;
+    }
+    case CE_PushButtonLabel: {
+        const QStyleOptionButton *button = qstyleoption_cast<const QStyleOptionButton *>(opt);
+        if (!button || !(button->features & QStyleOptionDelayButton::DelayBytton))
+            return QCommonStyle::drawControl(element, opt, p, widget);
+
+        const QStyleOptionDelayButton *delayButton = qstyleoption_cast<const QStyleOptionDelayButton *>(opt);
+        if (delayButton) {
+            // 这里画主面板
+            p->setPen(Qt::NoPen);
+            p->setBrush(QColor("#D3D3D3"));
+            p->drawRoundedRect(opt->rect, 5, 5);
+
+            if (delayButton->progress >= 0) {
+                QLinearGradient linear(opt->rect.x(), opt->rect.y(), opt->rect.x()+opt->rect.width(), opt->rect.y()+opt->rect.height());
+                linear.setColorAt(0, QColor(255,182,193));
+                linear.setColorAt(0.5, QColor(100,149,237));
+                linear.setColorAt(1, QColor(255,222,173));
+
+                p->setBrush(linear);
+                p->drawRoundedRect(QRect(delayButton->rect.x(), delayButton->rect.y(), int(delayButton->rect.width()*delayButton->progress), delayButton->rect.height()), 8, 8);
+            }
+
+            if (!delayButton->text.isEmpty() && delayButton->icon.isNull()) {
+                // 切割区域形成渐变
+                p->setPen(Qt::black);
+                p->drawText(opt->rect, Qt::AlignCenter, delayButton->text);
+            }
+
+        }
+        return;
+    }
     default:
         break;
     }
@@ -174,6 +360,10 @@ int MyStyle::pixelMetric(QStyle::PixelMetric m, const QStyleOption *opt, const Q
         return 10;
     case PM_SliderThickness:
         return 6;
+    case PM_MenuPanelWidth:
+        return 6;
+    case PM_SmallIconSize:
+        return 16;
 
     default:
         break;
@@ -240,6 +430,12 @@ QRect MyStyle::subElementRect(QStyle::SubElement sr, const QStyleOption *opt, co
         r = subElementRect(QStyle::SE_PushButtonContents, opt, widget);
         break;
 
+    case SE_PushButtonContents:
+        if (const QStyleOptionDelayButton *btn = qstyleoption_cast<const QStyleOptionDelayButton *>(opt)) {
+            r = opt->rect;
+        }
+
+        break;
     default:
         break;
     }
@@ -249,5 +445,51 @@ QRect MyStyle::subElementRect(QStyle::SubElement sr, const QStyleOption *opt, co
 
 QSize MyStyle::sizeFromContents(QStyle::ContentsType ct, const QStyleOption *opt, const QSize &csz, const QWidget *widget) const
 {
-    return QCommonStyle::sizeFromContents(ct, opt, csz, widget);
+    QSize newSize = QCommonStyle::sizeFromContents(ct, opt, csz, widget);
+
+    switch (ct) {
+    case CT_MenuItem: {
+        if (const QStyleOptionMenuItem *menuItem = qstyleoption_cast<const QStyleOptionMenuItem *>(opt)) {
+            int w = newSize.width();
+            int maxpmw = menuItem->maxIconWidth;
+            int tabSpacing = 20;
+            int iconw = pixelMetric(PM_SmallIconSize);
+
+            if (menuItem->text.contains(QLatin1Char('\t')))
+                w += tabSpacing;
+            else if (menuItem->menuItemType == QStyleOptionMenuItem::DefaultItem) {
+                QFontMetrics fm(menuItem->font);
+                QFont fontBold = menuItem->font;
+                fontBold.setBold(true);
+                QFontMetrics fmBold(fontBold);
+                w += fmBold.horizontalAdvance(menuItem->text) - fm.horizontalAdvance(menuItem->text);
+            }
+            w += maxpmw + iconw + 6;
+            newSize.setWidth(w);
+            if (menuItem->menuItemType == QStyleOptionMenuItem::Separator) {
+                if (!menuItem->text.isEmpty()) {
+                    newSize.setHeight(menuItem->fontMetrics.height());
+                }
+            }
+            newSize.setWidth(newSize.width());
+        }
+
+        return newSize;
+    }
+    default:
+        break;
+
+    }
+
+    return newSize;
+}
+
+void MyStyle::polish(QWidget *widget)
+{
+    if (widget->inherits("QMenu")) {
+        widget->setAttribute(Qt::WA_TranslucentBackground);
+        widget->setWindowFlags(widget->windowFlags() | Qt::NoDropShadowWindowHint | Qt::FramelessWindowHint);
+        widget->setMouseTracking(true);
+    }
+
 }
