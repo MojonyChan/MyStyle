@@ -31,6 +31,8 @@ Widget::Widget(QWidget *parent) :
     slider->setTickPosition(QSlider::TicksBelow);
     textLabel->setText("滑动滑条测试效果");
     button->setText("我是PushButton");
+    button->setToolTip("我是PushButton");
+    button->setIcon(style()->standardIcon(QStyle::SP_DesktopIcon));
 
     button->move(80, 150);
     pBar->move(50, 50);

@@ -6,9 +6,7 @@ bool DelayButton::hasPressed = false;
 DelayButton::DelayButton(QWidget *parent) : QPushButton(parent)
 {
     delayAnimation = new QPropertyAnimation(this, "delayProgress", this);
-    delayAnimation->setStartValue(0);
-    delayAnimation->setEndValue(1);
-    delayAnimation->setDuration(mDelayTime);
+
 }
 
 void DelayButton::setDelayTime(int time)
@@ -38,15 +36,33 @@ bool DelayButton::hitButton(const QPoint &pos) const
             delayAnimation->setEndValue(1);
             delayAnimation->setDuration(mDelayTime);
             delayAnimation->start();
+        } else if (delayAnimation->state() == QPropertyAnimation::Running) {
+            // 正在返回动画
+            hasPressed = true;
+            delayAnimation->pause();
+            delayAnimation->setStartValue(mProgress);
+            delayAnimation->setEndValue(1);
+            delayAnimation->setDuration(int(mDelayTime*(1-mProgress)));
+            delayAnimation->setCurrentTime(0);
+            if (delayAnimation->state() == QPropertyAnimation::Paused)
+                delayAnimation->resume();
+            else if (delayAnimation->state() == QPropertyAnimation::Stopped)
+                delayAnimation->start();
         }
     }
 
     return hit;
 }
 
-void DelayButton::mouseReleaseEvent(QMouseEvent *e)
+void DelayButton::mouseReleaseEvent(QMouseEvent *)
 {
     if (hasPressed) {
+        if (mProgress == 1.0) {
+            // 延时按钮已经结束 不需要再返回  直接保存这个样式
+            hasPressed = false;
+            return;
+        }
+
         if (delayAnimation->state() == QPropertyAnimation::Running)
             delayAnimation->pause();
         delayAnimation->setStartValue(mProgress);
@@ -59,8 +75,11 @@ void DelayButton::mouseReleaseEvent(QMouseEvent *e)
             delayAnimation->start();
         hasPressed = false;
     }
+}
 
-    QPushButton::mouseReleaseEvent(e);
+void DelayButton::mouseMoveEvent(QMouseEvent *)
+{
+    return;
 }
 
 void DelayButton::leaveEvent(QEvent *)

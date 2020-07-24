@@ -40,8 +40,6 @@ class DelayButton : public QPushButton
 public:
     explicit DelayButton(QWidget *parent = nullptr);
     void setDelayTime(int time);
-    void setColor(const QColor color);
-    void color() const;
     double delayProgress() const;
 
 protected:
@@ -49,21 +47,18 @@ protected:
     void leaveEvent(QEvent *) override;
     void enterEvent(QEvent *) override;
     bool hitButton(const QPoint &pos) const override;
-    void mouseReleaseEvent(QMouseEvent *e) override;
+    void mouseReleaseEvent(QMouseEvent *) override;
+    void mouseMoveEvent(QMouseEvent *) override;
     void initStyleOption(QStyleOptionButton *style) const;
     void setProgress(const double progress);
 
 private:
-    int mDelayTime = 3000;
+    int mDelayTime = 500;
     double mProgress = 0;
     static bool hasPressed;
     bool enterWidget = false;
     QPropertyAnimation *delayAnimation;
     QColor mColor;
-
-signals:
-
-public slots:
 };
 
 #endif // DELAYBUTTON_H

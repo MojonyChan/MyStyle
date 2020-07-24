@@ -1,5 +1,7 @@
 #include "mystyle.h"
 #include <QDebug>
+#include <qdrawutil.h>
+
 namespace  {
 void drawShadow(QPainter *painter, const QStyleOption *option, int borderW)
 {
@@ -67,6 +69,11 @@ void drawShadow(QPainter *painter, const QStyleOption *option, int borderW)
     painter->drawEllipse(QPoint(option->rect.width()-borderW, option->rect.height()-borderW), borderW, borderW);
     painter->restore();
 }
+
+static QWindow *qt_getWindow(const QWidget *widget)
+{
+    return widget ? widget->window()->windowHandle() : nullptr;
+}
 }
 
 void MyStyle::drawPrimitive(QStyle::PrimitiveElement element, const QStyleOption *option, QPainter *painter, const QWidget *widget) const
@@ -103,10 +110,25 @@ void MyStyle::drawPrimitive(QStyle::PrimitiveElement element, const QStyleOption
         painter->drawRoundedRect(option->rect - QMargins(borderW, borderW, borderW, borderW), 5, 5);
         return;
     }
-    case PE_FrameMenu: {
 
+    case PE_PanelButtonCommand: {
+        const QStyleOptionDelayButton *delayButton = qstyleoption_cast<const QStyleOptionDelayButton *>(option);
+        if (delayButton) {
+            // 这里画主面板
+            painter->setPen(Qt::NoPen);
+            if (delayButton->state & QStyle::State_MouseOver)
+                painter->setBrush(QColor("#D3D3D3").dark(110));
+            else
+                painter->setBrush(QColor("#D3D3D3"));
+            painter->drawRoundedRect(delayButton->rect, 5, 5);
+        }
         return;
     }
+//    case PE_PanelTipLabel: {
+//        const QBrush brush(option->palette.toolTipBase());
+//        qDrawShadeRect(painter, option->rect, option->palette.toolTipText().color(), false, 1, 0, &brush);
+//        return;
+//    }
 
     default:
         break;
@@ -271,30 +293,79 @@ void MyStyle::drawControl(QStyle::ControlElement element, const QStyleOption *op
 
         const QStyleOptionDelayButton *delayButton = qstyleoption_cast<const QStyleOptionDelayButton *>(opt);
         if (delayButton) {
-            // 这里画主面板
-            p->setPen(Qt::NoPen);
-            p->setBrush(QColor("#D3D3D3"));
-            p->drawRoundedRect(opt->rect, 5, 5);
-
             if (delayButton->progress >= 0) {
-                QLinearGradient linear(opt->rect.x(), opt->rect.y(), opt->rect.x()+opt->rect.width(), opt->rect.y()+opt->rect.height());
+                QLinearGradient linear(delayButton->rect.x(), delayButton->rect.y(),
+                                       delayButton->rect.x()+delayButton->rect.width(), delayButton->rect.y()+delayButton->rect.height());
                 linear.setColorAt(0, QColor(255,182,193));
                 linear.setColorAt(0.5, QColor(100,149,237));
                 linear.setColorAt(1, QColor(255,222,173));
 
                 p->setBrush(linear);
-                p->drawRoundedRect(QRect(delayButton->rect.x(), delayButton->rect.y(), int(delayButton->rect.width()*delayButton->progress), delayButton->rect.height()), 8, 8);
+                p->drawRoundedRect(QRect(delayButton->rect.x(), delayButton->rect.y(),
+                                    int(delayButton->rect.width()*delayButton->progress), delayButton->rect.height()), 5, 5);
             }
+        }  // end if
 
-            if (!delayButton->text.isEmpty() && delayButton->icon.isNull()) {
-                // 切割区域形成渐变
-                p->setPen(Qt::black);
+        QRegion leftTextRect = QRect(delayButton->rect.x(), delayButton->rect.y(), int(delayButton->rect.width()*delayButton->progress), delayButton->rect.height());
+        QRegion rightTextRect = QRegion(delayButton->rect).subtracted(leftTextRect);
+
+        if (!delayButton->text.isEmpty() && delayButton->icon.isNull()) {
+            // 切割区域形成渐变
+
+            if (!leftTextRect.isNull()) {
+                // 左侧被覆盖区域白色字体
+                p->save();
+                p->setClipRegion(leftTextRect);
+                p->setPen(Qt::white);
                 p->drawText(opt->rect, Qt::AlignCenter, delayButton->text);
+                p->restore();
             }
 
-        }
+            p->save();
+            p->setClipRegion(rightTextRect);
+            p->setPen(Qt::black);
+            p->drawText(opt->rect, Qt::AlignCenter, delayButton->text);
+            p->restore();
+        } else if (!delayButton->icon.isNull()) {
+            // 只有一张图片的时候，只显示图片
+            QIcon::Mode mode = button->state & State_Enabled ? QIcon::Normal : QIcon::Disabled;
+            if (mode == QIcon::Normal && button->state & State_HasFocus)
+                mode = QIcon::Active;
+            QIcon::State state = QIcon::Off;
+            if (button->state & State_On)
+                state = QIcon::On;
+
+            QPixmap pixmap = delayButton->icon.pixmap(qt_getWindow(widget), delayButton->iconSize, mode, state);
+
+            if (delayButton->text.isEmpty()) {
+                p->drawPixmap(QPoint(((delayButton->rect.width()-delayButton->rect.x()) - pixmap.width())/2, ((delayButton->rect.height()-delayButton->rect.y()) - pixmap.height())/2), pixmap);
+            } else {
+                // 既有图标又有文字
+                int iconSpacing = 4;
+
+                // 画图标
+                p->drawPixmap(iconSpacing, ((delayButton->rect.height()-delayButton->rect.y()) - pixmap.height())/2, pixmap);
+
+                // 画文字
+                if (!leftTextRect.isNull()) {
+                    // 左侧被覆盖区域白色字体
+                    p->save();
+                    p->setClipRegion(leftTextRect);
+                    p->setPen(Qt::white);
+                    p->drawText(opt->rect-QMargins(2*iconSpacing+pixmap.width(), 0, 0, 0), Qt::AlignVCenter, delayButton->text);
+                    p->restore();
+                }
+
+                p->save();
+                p->setClipRegion(rightTextRect);
+                p->setPen(Qt::black);
+                p->drawText(opt->rect-QMargins(2*iconSpacing+pixmap.width(), 0, 0, 0), Qt::AlignVCenter, delayButton->text);
+                p->restore();
+            }
+
+        }  // end else if
         return;
-    }
+    }  // end CE_PushButtonLabel
     default:
         break;
     }
@@ -490,6 +561,10 @@ void MyStyle::polish(QWidget *widget)
         widget->setAttribute(Qt::WA_TranslucentBackground);
         widget->setWindowFlags(widget->windowFlags() | Qt::NoDropShadowWindowHint | Qt::FramelessWindowHint);
         widget->setMouseTracking(true);
+    } else if (widget->inherits("DelayButton")) {
+//        widget->setAttribute(Qt::WA_Hover, true);
+        widget->setAttribute(Qt::WA_OpaquePaintEvent, false);
+
     }
 
 }
