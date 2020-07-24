@@ -1,6 +1,8 @@
 #ifndef MYSTYLE_H
 #define MYSTYLE_H
 
+#include "delaybutton.h"
+
 #include <QObject>
 #include <QCommonStyle>
 #include <QStyleOption>
@@ -8,6 +10,9 @@
 #include <QFontMetricsF>
 #include <QPalette>
 #include <QLinearGradient>
+#include <QPaintEngine>
+#include <QPixmapCache>
+#include <QApplication>
 
 class MyStyle : public QCommonStyle
 {
@@ -41,6 +46,7 @@ public:
     QSize sizeFromContents(QStyle::ContentsType ct, const QStyleOption *opt,
                            const QSize &csz, const QWidget *widget = nullptr) const override;
 
+    void polish(QWidget *widget) override;
 
 signals:
 

@@ -27,11 +27,13 @@ CONFIG += c++11
 SOURCES += \
         main.cpp \
         widget.cpp \
-    mystyle.cpp
+    mystyle.cpp \
+    delaybutton.cpp
 
 HEADERS += \
         widget.h \
-    mystyle.h
+    mystyle.h \
+    delaybutton.h
 
 FORMS += \
         widget.ui
