@@ -4,6 +4,9 @@
 #include <QDebug>
 #include <QStyleFactory>
 #include <QStyleHints>
+#include <QHBoxLayout>
+#include <QComboBox>
+#include <QLineEdit>
 
 Widget::Widget(QWidget *parent) :
     QWidget(parent),
@@ -13,12 +16,15 @@ Widget::Widget(QWidget *parent) :
     ui->setupUi(this);
     this->setMinimumSize(500, 300);
 
-
     QProgressBar *pBar = new QProgressBar(this);
     QSlider *slider = new QSlider(this);
     QLabel *textLabel = new QLabel(this);
     DelayButton *button = new DelayButton(this);
+//    QComboBox *comboBox = new QComboBox(this);
+    QLineEdit *lineEdit = new QLineEdit(this);
 
+    lineEdit->setFixedSize(400, 40);
+    lineEdit->setClearButtonEnabled(true);
     pBar->setMinimumSize(400, 40);
     pBar->setValue(70);
     pBar->setRange(0, 100);
@@ -33,11 +39,16 @@ Widget::Widget(QWidget *parent) :
     button->setText("我是PushButton");
     button->setToolTip("我是PushButton");
     button->setIcon(style()->standardIcon(QStyle::SP_DesktopIcon));
+//    comboBox->addItem("测试1");
+//    comboBox->addItem("测试2");
 
+    lineEdit->move(50, 190);
     button->move(80, 150);
     pBar->move(50, 50);
     slider->move(250, 150);
     textLabel->move(250, 120);
+//    comboBox->move(250, 190);
+
     QPixmap icon(16, 16);
     icon.fill(Qt::red);
     menu->addAction(style()->standardIcon(QStyle::SP_TrashIcon) ,"测试1");
@@ -68,7 +79,6 @@ void Widget::mouseReleaseEvent(QMouseEvent *e)
 
 void Widget::paintEvent(QPaintEvent *e)
 {
-
 //    QPainter p(this);
 
 //    QRegion eo(50, 50, 3, 3);

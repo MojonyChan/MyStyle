@@ -1,4 +1,6 @@
 #include "mystyle.h"
+
+#include <QGraphicsEffect>
 #include <QDebug>
 #include <qdrawutil.h>
 
@@ -96,9 +98,7 @@ void MyStyle::drawPrimitive(QStyle::PrimitiveElement element, const QStyleOption
         return;
     }
     case PE_PanelMenu: {
-
         int borderW = pixelMetric(PM_MenuPanelWidth);
-        ::drawShadow(painter, option, borderW);
 
         QLinearGradient linearG(QPoint(option->rect.x(), option->rect.y()), QPoint(option->rect.x() + option->rect.width(), option->rect.y() + option->rect.height()));
         linearG.setColorAt(0, QColor(255,182,193, 180));
@@ -110,6 +110,10 @@ void MyStyle::drawPrimitive(QStyle::PrimitiveElement element, const QStyleOption
         painter->drawRoundedRect(option->rect - QMargins(borderW, borderW, borderW, borderW), 5, 5);
         return;
     }
+
+    case PE_FrameMenu:
+        // == PE_Frame 不能省略，否则实际效果出现一个边框
+        return;
 
     case PE_PanelButtonCommand: {
         const QStyleOptionDelayButton *delayButton = qstyleoption_cast<const QStyleOptionDelayButton *>(option);
@@ -124,11 +128,52 @@ void MyStyle::drawPrimitive(QStyle::PrimitiveElement element, const QStyleOption
         }
         return;
     }
-//    case PE_PanelTipLabel: {
-//        const QBrush brush(option->palette.toolTipBase());
-//        qDrawShadeRect(painter, option->rect, option->palette.toolTipText().color(), false, 1, 0, &brush);
-//        return;
-//    }
+
+    case PE_PanelLineEdit: {
+        // LineEdit的面板，可以提供状态选择
+        const QStyleOptionFrame *lineEdit = qstyleoption_cast<const QStyleOptionFrame *>(option);
+        QLinearGradient linearG(QPoint(option->rect.x(), option->rect.y()), QPoint(option->rect.x() + option->rect.width(), option->rect.y() + option->rect.height()));
+
+        linearG.setColorAt(0, QColor(255, 182, 193, 180));
+        linearG.setColorAt(0.5, QColor(100, 149, 237, 180));
+        linearG.setColorAt(1, QColor(255, 222, 173, 180));
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(linearG);
+        if (!(lineEdit->state & QStyle::State_HasFocus))
+            painter->drawRoundedRect(option->rect-QMargins(lineEdit->lineWidth, lineEdit->lineWidth,
+                                                           lineEdit->lineWidth, lineEdit->lineWidth),
+                                     lineEdit->lineWidth, lineEdit->lineWidth);
+        else
+            painter->fillRect(option->rect-QMargins(lineEdit->lineWidth, lineEdit->lineWidth,
+                            lineEdit->lineWidth, lineEdit->lineWidth), linearG);
+        proxy()->drawPrimitive(PE_FrameLineEdit, lineEdit, painter, widget);
+
+        return;
+    }
+    case PE_FrameLineEdit: {
+        // LineEdit的边框，可以设置状态对边框的显示
+        const QStyleOptionDelayButton *delayButton = qstyleoption_cast<const QStyleOptionDelayButton *>(option);
+        if (delayButton)
+            return;
+
+        const QStyleOptionFrame *lineEdit = qstyleoption_cast<const QStyleOptionFrame *>(option);
+        bool focus = lineEdit->state & QStyle::State_HasFocus;
+
+        painter->save();
+        painter->setPen(Qt::NoPen);
+        painter->setClipRegion(QRegion(option->rect).subtracted(option->rect-QMargins(lineEdit->lineWidth, lineEdit->lineWidth,
+                                                   lineEdit->lineWidth, lineEdit->lineWidth)));
+
+        if (focus) {
+            painter->setBrush(Qt::darkCyan);
+        } else {
+            painter->setBrush(Qt::transparent);
+
+        }
+        painter->drawRoundedRect(lineEdit->rect, lineEdit->lineWidth, lineEdit->lineWidth);
+        painter->restore();
+        return;
+    }
 
     default:
         break;
@@ -218,6 +263,7 @@ void MyStyle::drawControl(QStyle::ControlElement element, const QStyleOption *op
 
         return;
     }
+
     case CE_MenuItem: {
         const QStyleOptionMenuItem *menuItem = qstyleoption_cast<const QStyleOptionMenuItem *>(opt);
         bool hover = menuItem->state & State_Selected && menuItem->state & State_Enabled;
@@ -271,12 +317,12 @@ void MyStyle::drawControl(QStyle::ControlElement element, const QStyleOption *op
             proxy()->drawControl(CE_PushButtonBevel, delayButton, p, widget);
 
             QStyleOptionDelayButton subopt = *delayButton;
-            subopt.rect = subElementRect(SE_PushButtonContents, delayButton, widget);
             proxy()->drawControl(CE_PushButtonLabel, &subopt, p, widget);
         }
 
         return;
     }
+
     case CE_PushButtonBevel: {
         if (const QStyleOptionDelayButton *button = qstyleoption_cast<const QStyleOptionDelayButton *>(opt)) {
             QStyleOptionDelayButton b(*button);  // 如果这里自定义的StyleOption未定义拷贝构造，就会出现数据错乱
@@ -286,6 +332,7 @@ void MyStyle::drawControl(QStyle::ControlElement element, const QStyleOption *op
         }
         return;
     }
+
     case CE_PushButtonLabel: {
         const QStyleOptionButton *button = qstyleoption_cast<const QStyleOptionButton *>(opt);
         if (!button || !(button->features & QStyleOptionDelayButton::DelayBytton))
@@ -366,6 +413,7 @@ void MyStyle::drawControl(QStyle::ControlElement element, const QStyleOption *op
         }  // end else if
         return;
     }  // end CE_PushButtonLabel
+
     default:
         break;
     }
@@ -498,13 +546,13 @@ QRect MyStyle::subElementRect(QStyle::SubElement sr, const QStyleOption *opt, co
         break;
 
     case SE_ProgressBarGroove:
-        r = subElementRect(QStyle::SE_PushButtonContents, opt, widget);
+        r = subElementRect(QStyle::SE_ProgressBarContents, opt, widget);
         break;
 
     case SE_PushButtonContents:
-        if (const QStyleOptionDelayButton *btn = qstyleoption_cast<const QStyleOptionDelayButton *>(opt)) {
-            r = opt->rect;
-        }
+//        if (const QStyleOptionDelayButton *btn = qstyleoption_cast<const QStyleOptionDelayButton *>(opt)) {
+//            r = opt->rect;
+//        }
 
         break;
     default:
@@ -561,8 +609,14 @@ void MyStyle::polish(QWidget *widget)
         widget->setAttribute(Qt::WA_TranslucentBackground);
         widget->setWindowFlags(widget->windowFlags() | Qt::NoDropShadowWindowHint | Qt::FramelessWindowHint);
         widget->setMouseTracking(true);
+
+        QGraphicsDropShadowEffect *dropEffect = new QGraphicsDropShadowEffect;
+        dropEffect->setOffset(0);
+        dropEffect->setBlurRadius(2 * pixelMetric(QStyle::PM_MenuPanelWidth));
+
+        widget->setGraphicsEffect(dropEffect);
+
     } else if (widget->inherits("DelayButton")) {
-//        widget->setAttribute(Qt::WA_Hover, true);
         widget->setAttribute(Qt::WA_OpaquePaintEvent, false);
 
     }
